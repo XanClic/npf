@@ -197,6 +197,7 @@ static void edit_char(uint32_t unicode)
     show_char(unicode);
 
     printf("Gib neues Zeichen mit Raute (#) und Leerzeichen ( ) ein:\n");
+    printf("(x, um das letzte Zeichen zu löschen; l, um zur letzten Zeile zurückzugehen; n, um die Zeile nicht zu verändern)\n");
 
     char tbuf[height];
     memcpy(tbuf, c->rows, height);
@@ -223,7 +224,9 @@ static void edit_char(uint32_t unicode)
                     tbuf[y] &= ~(1 << x);
                     break;
                 case 'x':
-                    if (x)
+                    if (!x)
+                        printf("\b \b");
+                    else
                     {
                         x--;
                         printf("\b\b  \b\b");
