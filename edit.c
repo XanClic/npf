@@ -168,6 +168,26 @@ static void add_char(uint32_t unicode, uint32_t uni_src)
     printf("Zeichen %lc (U+0x%04X) hinzugefügt.\n", (wint_t)unicode, (unsigned)unicode);
 }
 
+static void remove_char(uint32_t unicode)
+{
+    if (!font_valid)
+    {
+        fprintf(stderr, "Keine Schriftart aktiv.\n");
+        return;
+    }
+
+    struct npf_char *c;
+    if ((c = get_char(unicode)) == NULL)
+    {
+        fprintf(stderr, "Zeichen nicht gefunden.\n");
+        return;
+    }
+
+    memmove(c, (const void *)((uintptr_t)c + charsz), (--chars * charsz) - ((uintptr_t)c - (uintptr_t)char_array));
+
+    printf("Zeichen %lc (U+0x%04X) entfernt.\n", (wint_t)unicode, (unsigned)unicode);
+}
+
 static void show_char(uint32_t unicode)
 {
     struct npf_char *c = get_char(unicode);
@@ -323,6 +343,11 @@ static unsigned long read_number_par(void)
     return (unsigned long)-1;
 }
 
+static int npf_char_comparison(const void *x, const void *y)
+{
+    return (int32_t)(*(struct npf_char **)x)->num - (int32_t)(*(struct npf_char **)y)->num;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc >= 2)
@@ -360,6 +385,8 @@ int main(int argc, char *argv[])
             printf(" - name: Ändert den Namen der aktuellen Schriftart.\n");
             printf(" - add <Zeichen> [Quelle]: Fügt einen Eintrag für das angegebene Zeichen (UTF8) hinzu.\n");
             printf(" - addn <Unicode>: Fügt einen Eintrag für den angegebenen Unicodecode hinzu.\n");
+            printf(" - rm <Zeichen>: Löscht das angegebene Zeichen.\n");
+            printf(" - rmn <Unicode>: Löscht das angegebene Zeichen.\n");
             printf(" - list: Gibt die in der aktuellen Schriftart vorhandenen Einträge aus.\n");
             printf(" - edit <Zeichen>: Editiert ein Zeichen.\n");
             printf(" - editn <Unicode>: Editiert ein Zeichen anhand des Unicodecodes.\n");
@@ -494,11 +521,20 @@ int main(int argc, char *argv[])
         else if (!strcmp(cmd, "list"))
         {
             struct npf_char *tc = char_array;
+
+            struct npf_char **sorted = malloc(sizeof(*sorted) * chars);
             for (size_t i = 0; i < chars; i++)
             {
-                printf("%lc (U+0x%04X)\n", (wint_t)tc->num, (unsigned)tc->num);
+                sorted[i] = tc;
                 tc = (struct npf_char *)((uintptr_t)tc + charsz);
             }
+
+            qsort(sorted, chars, sizeof(*sorted), npf_char_comparison);
+
+            for (size_t i = 0; i < chars; i++)
+                printf("%lc (U+0x%04X)\n", (wint_t)sorted[i]->num, (unsigned)sorted[i]->num);
+
+            free(sorted);
         }
         else if (!strcmp(cmd, "add"))
         {
@@ -514,6 +550,18 @@ int main(int argc, char *argv[])
             unsigned long n = read_number_par();
             if (n != (unsigned long)-1)
                 add_char(n, 0);
+        }
+        else if (!strcmp(cmd, "rm"))
+        {
+            wchar_t wc = read_utf8_par();
+            if (wc)
+                remove_char(wc);
+        }
+        else if (!strcmp(cmd, "rmn"))
+        {
+            unsigned long n = read_number_par();
+            if (n != (unsigned long)-1)
+                remove_char(n);
         }
         else if (!strcmp(cmd, "edit"))
         {
